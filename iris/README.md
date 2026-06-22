@@ -1,44 +1,43 @@
-📱 Project Iris (Zeni App)
+# Iris
 
-Iris is the mobile frontend of the Zeni ecosystem. Built with React Native (via Expo) and TypeScript, it is designed to offer a fluid, offline-first, and visually attractive experience using a Cyberpunk Otaku aesthetic.
+Iris is Zeni's cross-platform client. It uses Expo 56, React Native, TypeScript, and Expo Router to run on Android, iOS, and the web.
 
-🛠️ Tech Stack
+## Current Status
 
-Framework: React Native + Expo
+The application retains the initial Expo experience with navigation, themes, and example components. It does not yet consume the Atenea API or implement personal finance workflows.
 
-Language: TypeScript
+## Requirements
 
-Styling: NativeWind (Tailwind for React Native)
+- Node.js
+- pnpm
+- Android Studio or Xcode for native emulators
 
-Graphics: React Native Skia
+Before modifying the application, read [`AGENTS.md`](./AGENTS.md), which requires consulting the documentation for Expo 56.
 
-Local Database: WatermelonDB
+## Local Development
 
-🚀 Quick Start
+```bash
+pnpm install
+pnpm start
+```
 
-Make sure the backend infrastructure (Athena and Pluto) is running via Docker Compose at the root of the monorepo before making network requests.
+Open an emulator from the Expo development server or use these commands directly:
 
-Install dependencies:
+| Command | Target |
+| --- | --- |
+| `pnpm android` | Android |
+| `pnpm ios` | iOS |
+| `pnpm web` | Web browser |
+| `pnpm lint` | Static analysis with Expo ESLint |
 
-npm install
+## Structure
 
+```text
+src/app/          Expo Router routes and layouts
+src/components/   Reusable components
+src/hooks/        Platform and theme hooks
+src/constants/    Visual tokens and constants
+assets/           Static icons and images
+```
 
-Configure environment variables:
-Create a .env file based on .env.example (if it exists) and set the API base URL pointing to http://localhost:3000 (Project Athena).
-
-Start the development server (Expo):
-
-npm start
-
-
-Run on device/emulator:
-
-Press a in the terminal to open on Android.
-
-Press i to open on iOS (requires macOS).
-
-Or scan the QR code with the Expo Go app on your physical phone.
-
-🎨 Style Guide (Coming Soon)
-
-Here we will document the neon color palette, typography, and standardized UI components.
+Use kebab-case filenames, PascalCase component exports, and the `@/` alias for internal imports. No testing framework is currently configured; introduce one alongside the first meaningful tests.

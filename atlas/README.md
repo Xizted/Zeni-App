@@ -1,40 +1,35 @@
-⚙️ Project Atlas (Zeni High-Performance Worker)
+# Atlas
 
-Atlas is the high-performance engine of the Zeni ecosystem. Written in Go, its sole responsibility is to execute CPU-intensive tasks concurrently, freeing Athena (NestJS) from bottlenecks.
+Atlas is intended to become Zeni's compute-intensive worker. It is written in Go and will integrate with Atenea to execute tasks that should not block the API.
 
-🎯 Main Responsibilities
+## Current Status
 
-Massive Ingestion: Concurrent parsing, validation, and formatting of thousands of records from bank statement files (CSV/OFX).
+The project contains a minimal executable that prints a message to the console. It does not yet implement a gRPC server, persistence, or file processing.
 
-Analytical Engine: Execution of heavy mathematical calculations for long-term financial projections.
+## Requirements
 
-🛠️ Tech Stack
+- Go 1.26.2 or compatible
 
-Language: Go (Golang)
+## Local Development
 
-Communication: gRPC / Protocol Buffers
+Run the worker from this directory:
 
-Data Access: [Define ORM or driver, e.g., GORM or pgx]
+```bash
+go run .
+```
 
-🚀 Local Development
+Check formatting and tests before submitting changes:
 
-To work on Atlas outside its Docker container:
+```bash
+gofmt -w main.go
+go test ./...
+```
 
-Download dependencies (modules):
+## Structure
 
-go mod tidy
+```text
+main.go    Worker entry point
+go.mod     Module definition for zeni/atlas
+```
 
-
-Generate gRPC code (If you modify contracts):
-(Requires having protoc and Go plugins installed)
-
-# Example command (adjust according to protos structure)
-# protoc --go_out=. --go-grpc_out=. proto/zeni.proto
-
-
-Run the service:
-
-go run main.go
-
-
-By default, the gRPC service will listen on port :50051.
+As the project grows, organize packages by domain responsibility and keep `main.go` limited to dependency assembly. Document Protocol Buffer contracts and their generation commands when they are added to the repository.

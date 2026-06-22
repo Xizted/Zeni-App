@@ -1,46 +1,62 @@
-🌌 Zeni Ecosystem
+# Zeni
 
-Zeni is a comprehensive personal finance and budget management platform with a microservices architecture. This monorepo contains the source code for all system components.
+Zeni is an experimental monorepo for a personal finance platform. The system is divided into a client application, an API, a worker, and a PostgreSQL database.
 
-🏗️ System Architecture
+> The project is at an early stage. Each package contains a functional scaffold, but full service integration has not been implemented yet.
 
-The ecosystem is divided into specialized services with codenames to clearly define their responsibilities:
+## Architecture
 
-📱 Project Iris: The client application in React Native (Frontend).
+| Project | Directory | Technology | Current status |
+| --- | --- | --- | --- |
+| Iris | [`iris/`](./iris) | Expo and React Native | Initial cross-platform application |
+| Atenea | [`atenea/`](./atenea) | NestJS and TypeScript | Base API with an example endpoint |
+| Atlas | [`atlas/`](./atlas) | Go | Minimal worker executable |
+| Pluto | `docker-compose.yml` | PostgreSQL 15 | Local database |
 
-🛡️ Project Athena: The API Gateway and core business logic (NestJS).
+## Requirements
 
-⚙️ Project Atlas: The high-performance Worker for heavy tasks (Go).
+- Node.js and pnpm
+- Go 1.26.2 or compatible
+- Docker with Docker Compose, for PostgreSQL only
 
-🏦 Project Pluto: Main database (PostgreSQL).
+## Quick Start
 
-🚀 Prerequisites
+Clone the repository and install dependencies in each Node.js project:
 
-Docker and Docker Compose (For the backend infrastructure).
+```bash
+cd atenea && pnpm install
+cd ../iris && pnpm install
+```
 
-Node.js (v24 or higher) and pnpm.
+Start PostgreSQL from the repository root:
 
-Go (v1.26 or higher).
+```bash
+docker compose up -d pluto
+```
 
-🛠️ Environment Setup (Development)
+Then run each service in a separate terminal:
 
-The Zeni backend (Athena, Atlas, and the Pluto database) runs through Docker containers to ensure a consistent environment.
+```bash
+cd atenea && pnpm start:dev
+cd iris && pnpm start
+cd atlas && go run .
+```
 
-Start the backend infrastructure:
-At the root of the project (zeni-workspace), run:
+The Compose file also declares Atenea and Atlas, but those services do not yet include the required `Dockerfile` files. For now, only `pluto` should be started through Docker.
 
-docker-compose up -d
+## Verification
 
+Run the relevant command from the repository root:
 
-This will start PostgreSQL on port 5432, the NestJS API on port 3000, and the Go Worker on port 50051.
+```bash
+cd atenea && pnpm test
+cd atenea && pnpm lint
+cd iris && pnpm lint
+cd atlas && go test ./...
+```
 
-Start the mobile application:
-Open a new terminal and navigate to the frontend:
+Read [AGENTS.md](./AGENTS.md) before contributing. It documents the repository structure, conventions, testing practices, and pull request requirements.
 
-cd iris
-pnpm start
+## License
 
-
-📜 License
-
-Personal project developed for educational purposes and technical experimentation.
+This is a personal project for education and technical experimentation. No distribution license has been defined for the monorepo.
