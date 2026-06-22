@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # Proyecto Pluto: Bóveda de Datos Principal
+  pluto:
+    image: postgres:15-alpine
+    container_name: pluto_db
+    environment:
+      POSTGRES_USER: zeni_admin
+      POSTGRES_PASSWORD: zeni_password
+      POSTGRES_DB: zeni_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pluto_data:/var/lib/postgresql/data
+    networks:
+      - zeni_network
+
+  # Proyecto Atenea: API Gateway y Lógica de Negocio
+  atenea:
+    build:
+      context: ./atenea
+      # Aquí asumiremos un Dockerfile estándar de NestJS
+    container_name: atenea_api
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://zeni_admin:zeni_password@pluto:5432/zeni_db?schema=public
+    depends_on:
+      - pluto
+    networks:
+      - zeni_network
+
+  # Proyecto Atlas: Motor de Alto Rendimiento
+  atlas:
+    build:
+      context: ./atlas
+      # Aquí asumiremos un Dockerfile estándar de Go
+    container_name: atlas_worker
+    ports:
+      - "50051:50051" # Puerto típico para gRPC
+    depends_on:
+      - pluto
+    networks:
+      - zeni_network
+
+volumes:
+  pluto_data:
+
+networks:
+  zeni_network:
+    driver: bridge
