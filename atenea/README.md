@@ -31,7 +31,17 @@ pnpm prisma:generate
 pnpm start:dev
 ```
 
-The versioned API is available at `http://localhost:3000/api/v1`.
+NestJS starts in watch mode and reloads after source changes. The local endpoints are:
+
+| Resource        | URL                                      |
+| --------------- | ---------------------------------------- |
+| Versioned API   | `http://localhost:3000/api/v1`           |
+| Swagger UI      | `http://localhost:3000/api/docs`         |
+| OpenAPI JSON    | `http://localhost:3000/api/docs-json`    |
+| Liveness probe  | `http://localhost:3000/api/health/live`  |
+| Readiness probe | `http://localhost:3000/api/health/ready` |
+
+Swagger is enabled in development and test environments. It is not exposed when `NODE_ENV=production`.
 
 ## Authentication
 
@@ -44,6 +54,37 @@ The versioned API is available at `http://localhost:3000/api/v1`.
 | `GET`  | `/api/v1/auth/me`       | Bearer token |
 
 Access tokens expire after 15 minutes by default. Refresh tokens expire after 30 days, rotate on every refresh, and are represented in Redis only by a SHA-256 digest. A new login replaces the previous session immediately.
+
+## API Documentation
+
+Swagger documents the versioned authentication API, validation schemas, response envelopes, errors, health checks, and JWT security requirements.
+
+Open `http://localhost:3000/api/docs`, select **Authorize**, and enter the access token returned by register or login. Swagger applies it as a Bearer token to protected operations. The machine-readable OpenAPI document is available at `http://localhost:3000/api/docs-json`.
+
+## Health Checks
+
+Health endpoints are public and intentionally excluded from URI versioning so infrastructure probes remain stable.
+
+| Method | Endpoint            | Purpose                                                           |
+| ------ | ------------------- | ----------------------------------------------------------------- |
+| `GET`  | `/api/health/live`  | Confirms that the Atenea process can answer HTTP requests.        |
+| `GET`  | `/api/health/ready` | Checks PostgreSQL and Redis before accepting application traffic. |
+
+Dependency checks time out after one second. A healthy probe returns HTTP `200` inside the standard `{ "data": ... }` response envelope. Failed readiness returns HTTP `503` inside the standard error envelope and identifies each dependency as `up` or `down`, without exposing connection details.
+
+```bash
+curl http://localhost:3000/api/health/live
+curl http://localhost:3000/api/health/ready
+```
+
+Docker Compose uses the readiness endpoint for Atenea's container health check. If readiness returns `503` during local development, verify the dependencies from the ecosystem root:
+
+```bash
+docker compose ps pluto redis
+docker compose up -d pluto redis
+```
+
+By default, Atenea connects to PostgreSQL on `localhost:5433` and Redis on `localhost:6380`, as configured in `.env.example`.
 
 ## Commands
 
@@ -64,6 +105,7 @@ Access tokens expire after 15 minutes by default. Refresh tokens expire after 30
 src/core/auth/        Authentication use cases, guards, and session boundary
 src/core/cache/       Redis lifecycle and access
 src/core/database/    Prisma lifecycle and access
+src/core/health/      Liveness, readiness, and dependency indicators
 src/common/           Global HTTP response and error handling
 test/                 End-to-end tests and Jest configuration
 ```
