@@ -16,6 +16,8 @@ Start PostgreSQL and Redis from the ecosystem root:
 docker compose up -d pluto redis
 ```
 
+PostgreSQL and Redis are exposed only on the host loopback interface, using ports `5433` and `6380` by default. Override them with `POSTGRES_HOST_PORT` and `REDIS_HOST_PORT` when needed.
+
 Create the local configuration and replace both JWT secrets with independent values of at least 32 characters:
 
 ```bash
@@ -32,6 +34,16 @@ pnpm start:dev
 ```
 
 The versioned API is available at `http://localhost:3000/api/v1`.
+
+## Docker Compose
+
+From the ecosystem root, build and start the complete backend stack:
+
+```bash
+docker compose up -d
+```
+
+Compose applies pending Prisma migrations before starting Atenea and waits for PostgreSQL and Redis to become healthy. The tracked `.env.example` provides development defaults; create `atenea/.env` to override JWT configuration locally. Never use the example secrets outside local development.
 
 ## Authentication
 

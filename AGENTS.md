@@ -33,7 +33,7 @@ The repository is still scaffold-level. The target architecture includes gRPC, P
 3. Add focused tests and documentation with the implementation.
 4. Never write imports or configuration for packages that are not installed.
 
-The target infrastructure command is `docker compose up -d` (legacy syntax: `docker-compose up -d`), which should eventually start Atenea, Atlas, and Pluto. It currently cannot start the complete backend because Atenea and Atlas lack Dockerfiles. Until that is implemented, use `docker compose up -d pluto` and run the services locally.
+The infrastructure command is `docker compose up -d` (legacy syntax: `docker-compose up -d`). It builds and starts Atenea, Atlas, Pluto, and Redis, and applies Atenea's pending Prisma migrations before starting the API. Atlas remains a persistent placeholder process until its versioned gRPC server is implemented; it does not expose a port yet.
 
 ## Repository Commands
 
