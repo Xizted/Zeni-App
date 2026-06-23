@@ -4,6 +4,7 @@ import { AuthModule } from './core/auth/auth.module';
 import { RedisModule } from './core/cache/redis.module';
 import { validateEnvironment } from './core/config/environment';
 import { DatabaseModule } from './core/database/database.module';
+import { HealthModule } from './core/health/health.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { DatabaseModule } from './core/database/database.module';
     DatabaseModule,
     RedisModule,
     AuthModule,
+    HealthModule,
   ],
 })
 export class AppModule {}
