@@ -8,9 +8,15 @@ services:
       POSTGRES_PASSWORD: zeni_password
       POSTGRES_DB: zeni_db
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
       - pluto_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
     networks:
       - zeni_network
 
@@ -18,7 +24,7 @@ services:
     image: redis:7-alpine
     container_name: zeni_redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${REDIS_HOST_PORT:-6380}:6379"
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -34,18 +40,56 @@ services:
   atenea:
     build:
       context: ./atenea
-      # Aquí asumiremos un Dockerfile estándar de NestJS
+      target: runtime
     container_name: atenea_api
     ports:
       - "3000:3000"
     env_file:
-      - ./atenea/.env
+      - path: ./atenea/.env.example
+        required: true
+      - path: ./atenea/.env
+        required: false
     environment:
-      - DATABASE_URL=postgresql://zeni_admin:zeni_password@pluto:5432/zeni_db?schema=public
-      - REDIS_URL=redis://redis:6379
+      NODE_ENV: production
+      DATABASE_URL: postgresql://zeni_admin:zeni_password@pluto:5432/zeni_db?schema=public
+      REDIS_URL: redis://redis:6379
     depends_on:
-      - pluto
-      - redis
+      atenea-migrate:
+        condition: service_completed_successfully
+      pluto:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health/ready').then(response => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - zeni_network
+
+  atenea-migrate:
+    build:
+      context: ./atenea
+      target: migrate
+    env_file:
+      - path: ./atenea/.env.example
+        required: true
+      - path: ./atenea/.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://zeni_admin:zeni_password@pluto:5432/zeni_db?schema=public
+    depends_on:
+      pluto:
+        condition: service_healthy
+    restart: "no"
     networks:
       - zeni_network
 
@@ -53,12 +97,8 @@ services:
   atlas:
     build:
       context: ./atlas
-      # Aquí asumiremos un Dockerfile estándar de Go
+      target: runtime
     container_name: atlas_worker
-    ports:
-      - "50051:50051" # Puerto típico para gRPC
-    depends_on:
-      - pluto
     networks:
       - zeni_network
 
