@@ -4,7 +4,7 @@ Atlas is intended to become Zeni's compute-intensive worker. It is written in Go
 
 ## Current Status
 
-The project contains a minimal executable that prints a message to the console. It does not yet implement a gRPC server, persistence, or file processing.
+The project contains a minimal long-running executable with graceful shutdown so its container can participate in the local stack. It does not yet implement a gRPC server, persistence, or file processing, and therefore exposes no port.
 
 ## Requirements
 
@@ -17,6 +17,8 @@ Run the worker from this directory:
 ```bash
 go run .
 ```
+
+The process runs until it receives `SIGINT` or `SIGTERM`.
 
 Check formatting and tests before submitting changes:
 
