@@ -1,28 +1,23 @@
 import {
   ConflictException,
-  Inject,
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { Prisma } from '../../../../generated/prisma/client';
+import { PrismaService } from '../../database/prisma.service';
 import { AuthResult } from '../auth.contracts';
 import { AuthTokenService } from '../auth-token.service';
 import { RegisterUserDto } from '../dto/register-user.dto';
 import type { AuthUser } from '../entities/auth-user.entity';
 import { PasswordHasherService } from '../password-hasher.service';
-import {
-  AUTH_REPOSITORY,
-  EmailAlreadyRegisteredError,
-} from '../repositories/auth.repository';
-import type { AuthRepository } from '../repositories/auth.repository';
-import { SESSION_STORE } from '../sessions/session.store';
-import type { SessionStore } from '../sessions/session.store';
+import { AuthSessionService } from '../sessions/auth-session.service';
 
 @Injectable()
 export class RegisterUserService {
   constructor(
-    @Inject(AUTH_REPOSITORY) private readonly users: AuthRepository,
-    @Inject(SESSION_STORE) private readonly sessions: SessionStore,
+    private readonly prisma: PrismaService,
+    private readonly sessions: AuthSessionService,
     private readonly passwordHasher: PasswordHasherService,
     private readonly tokenService: AuthTokenService,
   ) {}
@@ -31,13 +26,24 @@ export class RegisterUserService {
     const passwordHash = await this.passwordHasher.hash(input.password);
     let user: AuthUser;
     try {
-      user = await this.users.create({
-        email: input.email,
-        fullName: input.fullName,
-        passwordHash,
+      user = await this.prisma.user.create({
+        data: {
+          email: input.email,
+          fullName: input.fullName,
+          passwordHash,
+        },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          createdAt: true,
+        },
       });
     } catch (error) {
-      if (error instanceof EmailAlreadyRegisteredError) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
         throw new ConflictException('Email is already registered');
       }
       throw error;
@@ -52,16 +58,7 @@ export class RegisterUserService {
       });
       return { user, tokens };
     } catch {
-      await this.compensate(user.id);
       throw new ServiceUnavailableException('Authentication is unavailable');
-    }
-  }
-
-  private async compensate(userId: string): Promise<void> {
-    try {
-      await this.users.deleteNewUser(userId);
-    } catch {
-      // Preserve the original infrastructure failure without exposing details.
     }
   }
 }

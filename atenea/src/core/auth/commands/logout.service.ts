@@ -1,15 +1,10 @@
-import {
-  Inject,
-  Injectable,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import type { AuthPrincipal } from '../auth.contracts';
-import { SESSION_STORE } from '../sessions/session.store';
-import type { SessionStore } from '../sessions/session.store';
+import { AuthSessionService } from '../sessions/auth-session.service';
 
 @Injectable()
 export class LogoutService {
-  constructor(@Inject(SESSION_STORE) private readonly sessions: SessionStore) {}
+  constructor(private readonly sessions: AuthSessionService) {}
 
   async execute(principal: AuthPrincipal): Promise<void> {
     try {

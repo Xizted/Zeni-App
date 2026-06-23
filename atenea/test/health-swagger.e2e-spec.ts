@@ -18,12 +18,18 @@ const createTestApp = async (
   nodeEnvironment = 'test',
 ): Promise<TestContext> => {
   const databasePing = jest.fn().mockResolvedValue(undefined);
+  const documentDatabasePing = jest
+    .fn()
+    .mockRejectedValue(new Error('Use the mongodb provider'));
   const redisPing = jest.fn().mockResolvedValue(undefined);
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
   })
     .overrideProvider(PrismaService)
-    .useValue({ ping: databasePing })
+    .useValue({
+      $runCommandRaw: documentDatabasePing,
+      $queryRawUnsafe: databasePing,
+    })
     .overrideProvider(RedisService)
     .useValue({ ping: redisPing })
     .compile();
@@ -67,7 +73,7 @@ describe('Health checks and Swagger (e2e)', () => {
     expect(context.redisPing).toHaveBeenCalledTimes(1);
   });
 
-  it('returns dependency details when readiness fails', async () => {
+  it('returns the standard error contract when readiness fails', async () => {
     context = await createTestApp();
     context.databasePing.mockRejectedValueOnce(new Error('database offline'));
 
@@ -75,17 +81,14 @@ describe('Health checks and Swagger (e2e)', () => {
       .get('/api/health/ready')
       .expect(503);
 
-    expect(response.body.error).toMatchObject({
+    expect(response.body.error).toEqual({
+      statusCode: 503,
       code: 'SERVICE_UNAVAILABLE',
-      message: 'Health check failed',
-      details: {
-        status: 'error',
-        details: {
-          database: { status: 'down' },
-          redis: { status: 'up' },
-        },
-      },
+      message: 'Service Unavailable Exception',
+      path: '/api/health/ready',
+      timestamp: expect.any(String),
     });
+    expect(response.body.error).not.toHaveProperty('details');
   });
 
   it('publishes the OpenAPI contract outside production', async () => {

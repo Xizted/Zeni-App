@@ -4,7 +4,3 @@ export interface AuthUser {
   fullName: string;
   createdAt: Date;
 }
-
-export interface AuthUserWithPassword extends AuthUser {
-  passwordHash: string;
-}

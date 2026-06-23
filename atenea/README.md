@@ -82,7 +82,7 @@ Health endpoints are public and intentionally excluded from URI versioning so in
 | `GET`  | `/api/health/live`  | Confirms that the Atenea process can answer HTTP requests.        |
 | `GET`  | `/api/health/ready` | Checks PostgreSQL and Redis before accepting application traffic. |
 
-Dependency checks time out after one second. A healthy probe returns HTTP `200` inside the standard `{ "data": ... }` response envelope. Failed readiness returns HTTP `503` inside the standard error envelope and identifies each dependency as `up` or `down`, without exposing connection details.
+Dependency checks time out after one second. A healthy probe returns HTTP `200` inside the standard `{ "data": ... }` response envelope. Failed readiness returns HTTP `503` inside the standard error envelope without exposing dependency or connection details.
 
 ```bash
 curl http://localhost:3000/api/health/live

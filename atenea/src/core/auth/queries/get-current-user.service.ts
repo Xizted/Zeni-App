@@ -1,16 +1,21 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '../../database/prisma.service';
 import { AuthUser } from '../entities/auth-user.entity';
-import { AUTH_REPOSITORY } from '../repositories/auth.repository';
-import type { AuthRepository } from '../repositories/auth.repository';
 
 @Injectable()
 export class GetCurrentUserService {
-  constructor(
-    @Inject(AUTH_REPOSITORY) private readonly users: AuthRepository,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async execute(userId: string): Promise<AuthUser> {
-    const user = await this.users.findActiveById(userId);
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        createdAt: true,
+      },
+    });
     if (!user) {
       throw new UnauthorizedException('Invalid or expired credentials');
     }

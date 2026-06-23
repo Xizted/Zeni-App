@@ -3,7 +3,7 @@ import {
   HealthCheck,
   HealthCheckResult,
   HealthCheckService,
-  HealthIndicatorService,
+  PrismaHealthIndicator,
 } from '@nestjs/terminus';
 import {
   ApiExtraModels,
@@ -12,16 +12,11 @@ import {
   ApiServiceUnavailableResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { ApiErrorResponseDto } from '../../common/dto/api-error-response.dto';
 import { Public } from '../auth/public.decorator';
-import {
-  DatabaseHealthIndicator,
-  RedisHealthIndicator,
-} from './dependency-health.indicators';
-import {
-  HealthErrorResponseDto,
-  HealthIndicatorStatusDto,
-  HealthResponseDto,
-} from './health.dto';
+import { PrismaService } from '../database/prisma.service';
+import { HealthIndicatorStatusDto, HealthResponseDto } from './health.dto';
+import { RedisHealthIndicator } from './redis-health.indicator';
 
 @Public()
 @ApiTags('health')
@@ -30,8 +25,8 @@ import {
 export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
-    private readonly healthIndicator: HealthIndicatorService,
-    private readonly database: DatabaseHealthIndicator,
+    private readonly prismaHealth: PrismaHealthIndicator,
+    private readonly prisma: PrismaService,
     private readonly redis: RedisHealthIndicator,
   ) {}
 
@@ -41,7 +36,7 @@ export class HealthController {
   @ApiOkResponse({ type: HealthResponseDto })
   liveness(): Promise<HealthCheckResult> {
     return this.health.check([
-      () => Promise.resolve(this.healthIndicator.check('api').up()),
+      () => Promise.resolve({ api: { status: 'up' as const } }),
     ]);
   }
 
@@ -49,10 +44,13 @@ export class HealthController {
   @HealthCheck({ swaggerDocumentation: false })
   @ApiOperation({ summary: 'Check whether the API can serve traffic' })
   @ApiOkResponse({ type: HealthResponseDto })
-  @ApiServiceUnavailableResponse({ type: HealthErrorResponseDto })
+  @ApiServiceUnavailableResponse({ type: ApiErrorResponseDto })
   readiness(): Promise<HealthCheckResult> {
     return this.health.check([
-      () => this.database.check(),
+      () =>
+        this.prismaHealth.pingCheck('database', this.prisma, {
+          timeout: 1_000,
+        }),
       () => this.redis.check(),
     ]);
   }

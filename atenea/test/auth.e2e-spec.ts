@@ -3,61 +3,60 @@ import { Test, TestingModule } from '@nestjs/testing';
 import * as argon2 from 'argon2';
 import request from 'supertest';
 import type { App } from 'supertest/types';
+import { Prisma } from '../generated/prisma/client';
 import { AppModule } from '../src/app.module';
 import { configureApplication } from '../src/app.config';
-import type {
-  AuthUser,
-  AuthUserWithPassword,
-} from '../src/core/auth/entities/auth-user.entity';
-import {
-  AUTH_REPOSITORY,
-  AuthRepository,
-  CreateAuthUserInput,
-  EmailAlreadyRegisteredError,
-} from '../src/core/auth/repositories/auth.repository';
+import type { AuthUser } from '../src/core/auth/entities/auth-user.entity';
 import {
   AuthSession,
-  SESSION_STORE,
-  SessionStore,
-} from '../src/core/auth/sessions/session.store';
+  AuthSessionService,
+} from '../src/core/auth/sessions/auth-session.service';
 import { RedisService } from '../src/core/cache/redis.service';
 import { PrismaService } from '../src/core/database/prisma.service';
 
-class InMemoryAuthRepository implements AuthRepository {
-  private readonly users = new Map<string, AuthUserWithPassword>();
+type StoredUser = AuthUser & { passwordHash: string };
 
-  async create(input: CreateAuthUserInput): Promise<AuthUser> {
-    if ([...this.users.values()].some((user) => user.email === input.email)) {
-      throw new EmailAlreadyRegisteredError();
-    }
-    const user: AuthUserWithPassword = {
-      id: crypto.randomUUID(),
-      email: input.email,
-      fullName: input.fullName,
-      passwordHash: input.passwordHash,
-      createdAt: new Date(),
-    };
-    this.users.set(user.id, user);
-    return this.safeUser(user);
-  }
+class InMemoryPrismaService {
+  private readonly users = new Map<string, StoredUser>();
 
-  async findActiveByEmail(email: string): Promise<AuthUserWithPassword | null> {
-    return (
-      [...this.users.values()].find((user) => user.email === email) ?? null
-    );
-  }
+  readonly user = {
+    create: async (args: {
+      data: { email: string; fullName: string; passwordHash: string };
+    }): Promise<AuthUser> => {
+      if (
+        [...this.users.values()].some((user) => user.email === args.data.email)
+      ) {
+        throw new Prisma.PrismaClientKnownRequestError(
+          'Unique constraint failed',
+          { code: 'P2002', clientVersion: '7.8.0' },
+        );
+      }
+      const user: StoredUser = {
+        id: crypto.randomUUID(),
+        email: args.data.email,
+        fullName: args.data.fullName,
+        passwordHash: args.data.passwordHash,
+        createdAt: new Date(),
+      };
+      this.users.set(user.id, user);
+      return this.safeUser(user);
+    },
+    findFirst: async (args: {
+      where: { id?: string; email?: string; deletedAt: null };
+      select: { passwordHash?: boolean };
+    }): Promise<AuthUser | StoredUser | null> => {
+      const user = [...this.users.values()].find(
+        (candidate) =>
+          (args.where.id === undefined || candidate.id === args.where.id) &&
+          (args.where.email === undefined ||
+            candidate.email === args.where.email),
+      );
+      if (!user) return null;
+      return args.select.passwordHash ? user : this.safeUser(user);
+    },
+  };
 
-  async findActiveById(id: string): Promise<AuthUser | null> {
-    const user = this.users.get(id);
-    if (!user) return null;
-    return this.safeUser(user);
-  }
-
-  async deleteNewUser(id: string): Promise<void> {
-    this.users.delete(id);
-  }
-
-  private safeUser(user: AuthUserWithPassword): AuthUser {
+  private safeUser(user: StoredUser): AuthUser {
     return {
       id: user.id,
       email: user.email,
@@ -67,7 +66,7 @@ class InMemoryAuthRepository implements AuthRepository {
   }
 }
 
-class InMemorySessionStore implements SessionStore {
+class InMemoryAuthSessionService {
   private readonly sessions = new Map<string, AuthSession>();
 
   async replace(userId: string, session: AuthSession): Promise<void> {
@@ -113,13 +112,11 @@ describe('Authentication (e2e)', () => {
       imports: [AppModule],
     })
       .overrideProvider(PrismaService)
-      .useValue({ $connect: jest.fn(), $disconnect: jest.fn() })
+      .useValue(new InMemoryPrismaService())
       .overrideProvider(RedisService)
       .useValue({})
-      .overrideProvider(AUTH_REPOSITORY)
-      .useValue(new InMemoryAuthRepository())
-      .overrideProvider(SESSION_STORE)
-      .useValue(new InMemorySessionStore())
+      .overrideProvider(AuthSessionService)
+      .useValue(new InMemoryAuthSessionService())
       .compile();
 
     app = moduleFixture.createNestApplication();

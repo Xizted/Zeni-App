@@ -1,11 +1,9 @@
 import { ConflictException, ServiceUnavailableException } from '@nestjs/common';
+import { Prisma } from '../../../../generated/prisma/client';
+import { PrismaService } from '../../database/prisma.service';
 import { AuthTokenService } from '../auth-token.service';
 import { PasswordHasherService } from '../password-hasher.service';
-import {
-  AuthRepository,
-  EmailAlreadyRegisteredError,
-} from '../repositories/auth.repository';
-import { SessionStore } from '../sessions/session.store';
+import { AuthSessionService } from '../sessions/auth-session.service';
 import { RegisterUserService } from './register-user.service';
 
 describe('RegisterUserService', () => {
@@ -21,22 +19,17 @@ describe('RegisterUserService', () => {
     createdAt: new Date(),
   };
 
-  let users: jest.Mocked<AuthRepository>;
-  let sessions: jest.Mocked<SessionStore>;
+  let createUser: jest.Mock;
+  let sessions: jest.Mocked<Pick<AuthSessionService, 'replace'>>;
   let service: RegisterUserService;
 
   beforeEach(() => {
-    users = {
-      create: jest.fn().mockResolvedValue(user),
-      findActiveByEmail: jest.fn(),
-      findActiveById: jest.fn(),
-      deleteNewUser: jest.fn().mockResolvedValue(undefined),
-    };
+    createUser = jest.fn().mockResolvedValue(user);
+    const prisma = {
+      user: { create: createUser },
+    } as unknown as PrismaService;
     sessions = {
       replace: jest.fn().mockResolvedValue(undefined),
-      find: jest.fn(),
-      rotate: jest.fn(),
-      revoke: jest.fn(),
     };
     const passwordHasher = {
       hash: jest.fn().mockResolvedValue('password-hash'),
@@ -51,24 +44,29 @@ describe('RegisterUserService', () => {
     } as unknown as AuthTokenService;
 
     service = new RegisterUserService(
-      users,
-      sessions,
+      prisma,
+      sessions as unknown as AuthSessionService,
       passwordHasher,
       tokenService,
     );
   });
 
-  it('removes the new user when session creation fails', async () => {
+  it('preserves the new user when session creation fails', async () => {
     sessions.replace.mockRejectedValue(new Error('Redis unavailable'));
 
     await expect(service.execute(input)).rejects.toBeInstanceOf(
       ServiceUnavailableException,
     );
-    expect(users.deleteNewUser).toHaveBeenCalledWith(user.id);
+    expect(createUser).toHaveBeenCalledTimes(1);
   });
 
   it('maps a duplicate email to conflict without creating a session', async () => {
-    users.create.mockRejectedValue(new EmailAlreadyRegisteredError());
+    createUser.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '7.8.0',
+      }),
+    );
 
     await expect(service.execute(input)).rejects.toBeInstanceOf(
       ConflictException,
