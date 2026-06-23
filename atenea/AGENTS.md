@@ -77,7 +77,9 @@ Domain-specific entities, DTOs, commands, and queries belong inside their domain
 - Prisma is the only PostgreSQL access mechanism.
 - Centralize Prisma lifecycle and access in the global `DatabaseModule` and its `PrismaService`.
 - Never instantiate `PrismaClient` inside a domain, controller, command, or query.
-- Inject the centralized database abstraction into application services. Keep persistence details behind domain boundaries when complexity warrants a repository port.
+- Inject `PrismaService` directly into command and query services by default. Do not wrap an already expressive dependency in generic repositories, one-implementation ports, provider symbols, or pass-through adapters.
+- Introduce an abstraction only when it owns meaningful policy, protects a boundary, or supports a demonstrated variation. Easier mocking or the possibility of a future implementation is not sufficient justification.
+- Use explicit Prisma `select` projections and map results to application entities or response DTOs. Never return an unrestricted persistence record from a public service.
 - Commit schema migrations with model changes. Never edit an applied migration to change history.
 - Bound list queries, make ordering explicit, and avoid N+1 access patterns.
 - Never leak persistence records across transport or domain boundaries; map them to explicit entities or response DTOs.
@@ -101,6 +103,9 @@ Domain-specific entities, DTOs, commands, and queries belong inside their domain
 - Never reuse Prisma models or domain entities as request DTOs.
 - Standardize successful API responses through a global interceptor in `common/interceptors/`.
 - Standardize errors through explicit exceptions and global filters. Never expose stack traces or persistence details.
+- Keep global filters domain-agnostic. Cross-cutting components must handle standard framework contracts without inspecting domain payloads or feature-specific response shapes.
+- The global HTTP error contract is `{ error: { statusCode, code, message, path, timestamp } }`. `message` may be a string or a string array from validation; do not attach raw exception payloads or a generic `details` property.
+- Log unhandled exceptions and their stack traces server-side with NestJS `Logger`, but return only `INTERNAL_SERVER_ERROR` and `Internal server error` to clients.
 - Keep request and response contracts explicit, typed, and stable.
 
 ## Authentication and Security
@@ -108,8 +113,19 @@ Domain-specific entities, DTOs, commands, and queries belong inside their domain
 - Protect every business endpoint with a verified JWT guard by default.
 - Permit anonymous access only when the endpoint is explicitly marked public and the requirement is documented.
 - Keep authentication infrastructure under `core/auth/`; keep authorization rules in guards or policies, not controller conditionals.
+- Keep generic infrastructure lifecycle and low-level operations in `core/`; keep feature-specific keys, serialization, TTL policy, and invariants inside the feature that owns them.
+- Do not add an interface, injection token, or adapter around a single stable implementation unless it protects a real architectural boundary or owns meaningful behavior.
+- Preserve atomic compare-and-update behavior for security-sensitive state transitions; never replace an atomic operation with separate read/write calls.
+- When one operation spans systems without a shared transaction, define the authoritative state and retry semantics explicitly. Do not use destructive compensation unless it is guaranteed, idempotent, and safer than preserving the completed state.
 - Never log passwords, secrets, JWTs, credentials, full financial payloads, or other sensitive data.
 - Do not trust user-supplied ownership, account, tenant, currency, or balance data. Resolve and authorize it server-side.
+
+## Health Checks
+
+- Keep liveness and readiness public and version-neutral.
+- Prefer health indicators provided by the framework or dependency integration. Do not wrap them with pass-through services that duplicate ping, timeout, or status-mapping behavior.
+- Create a custom indicator only when the existing client has no compatible integration, and keep that indicator minimal. Do not adopt an unrelated transport or dependency solely to implement a health probe.
+- Failed readiness must use the standard global error contract and must not expose internal dependency state, connection information, or raw infrastructure results to clients.
 
 ## NestJS Composition Rules
 
@@ -125,6 +141,7 @@ Domain-specific entities, DTOs, commands, and queries belong inside their domain
 - Test command invariants, transaction rollback, idempotency, authorization boundaries, DTO validation, query limits, and persistence mapping where relevant.
 - For financial workflows, include failure-path and concurrency-sensitive tests, not only successful cases.
 - Run focused Jest tests, `pnpm test:e2e` when transport behavior changes, and `pnpm lint` when appropriate.
+- The current `pnpm lint` script includes `--fix`. For read-only verification, invoke ESLint directly without `--fix`; use the script only when rewriting is intended and in scope.
 - Never run a build after changes.
 
 ## Delivery Constraints
