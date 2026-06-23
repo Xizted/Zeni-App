@@ -10,10 +10,7 @@ import { RegisterUserService } from './commands/register-user.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PasswordHasherService } from './password-hasher.service';
 import { GetCurrentUserService } from './queries/get-current-user.service';
-import { AUTH_REPOSITORY } from './repositories/auth.repository';
-import { PrismaAuthRepository } from './repositories/prisma-auth.repository';
-import { RedisSessionStore } from './sessions/redis-session.store';
-import { SESSION_STORE } from './sessions/session.store';
+import { AuthSessionService } from './sessions/auth-session.service';
 
 @Module({
   imports: [JwtModule.register({})],
@@ -26,10 +23,7 @@ import { SESSION_STORE } from './sessions/session.store';
     RefreshSessionService,
     LogoutService,
     GetCurrentUserService,
-    PrismaAuthRepository,
-    RedisSessionStore,
-    { provide: AUTH_REPOSITORY, useExisting: PrismaAuthRepository },
-    { provide: SESSION_STORE, useExisting: RedisSessionStore },
+    AuthSessionService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })

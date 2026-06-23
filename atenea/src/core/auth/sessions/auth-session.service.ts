@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../../cache/redis.service';
 import { Environment } from '../../config/environment';
-import { AuthSession, SessionStore } from './session.store';
+
+export interface AuthSession {
+  sessionId: string;
+  refreshTokenDigest: string;
+}
 
 const ROTATE_SCRIPT = `
 local current = redis.call('GET', KEYS[1])
@@ -26,7 +30,7 @@ return 1
 `;
 
 @Injectable()
-export class RedisSessionStore implements SessionStore {
+export class AuthSessionService {
   private readonly ttlSeconds: number;
 
   constructor(

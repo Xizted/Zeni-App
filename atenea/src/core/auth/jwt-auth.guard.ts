@@ -1,7 +1,6 @@
 import {
   CanActivate,
   ExecutionContext,
-  Inject,
   Injectable,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -11,8 +10,10 @@ import { Request } from 'express';
 import { AuthPrincipal } from './auth.contracts';
 import { type AuthTokenPayload, AuthTokenService } from './auth-token.service';
 import { IS_PUBLIC_KEY } from './public.decorator';
-import { SESSION_STORE } from './sessions/session.store';
-import type { AuthSession, SessionStore } from './sessions/session.store';
+import {
+  type AuthSession,
+  AuthSessionService,
+} from './sessions/auth-session.service';
 
 interface AuthenticatedRequest extends Request {
   auth?: AuthPrincipal;
@@ -23,7 +24,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly tokenService: AuthTokenService,
-    @Inject(SESSION_STORE) private readonly sessions: SessionStore,
+    private readonly sessions: AuthSessionService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
